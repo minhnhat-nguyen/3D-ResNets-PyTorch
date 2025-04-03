@@ -127,7 +127,19 @@ def parse_opts():
     parser.add_argument('--optimizer',
                         default='sgd',
                         type=str,
-                        help='Currently only support SGD')
+                        help='Currently supports SGD and Adam')
+    parser.add_argument('--adam_beta1',
+                        default=0.9,
+                        type=float,
+                        help='Adam beta1 parameter (default: 0.9)')
+    parser.add_argument('--adam_beta2',
+                        default=0.999,
+                        type=float,
+                        help='Adam beta2 parameter (default: 0.999)')
+    parser.add_argument('--adam_epsilon',
+                        default=1e-8,
+                        type=float,
+                        help='Adam epsilon parameter (default: 1e-8)')
     parser.add_argument('--lr_scheduler',
                         default='multistep',
                         type=str,
@@ -223,15 +235,15 @@ def parse_opts():
     parser.add_argument('--model_depth',
                         default=18,
                         type=int,
-                        help='Depth of resnet (10 | 18 | 34 | 50 | 101)')
+                        help='Depth of resnet (10 | 18 | 34 | 50 | 101) or version of EfficientNet (0-7 for B0-B7)')
     parser.add_argument('--efficientnet_version',
                         default=0,
                         type=int,
-                        help='EfficientNet version (0-7 for models b0-b7)')
+                        help='EfficientNet version (0-7 for B0-B7)')
     parser.add_argument('--dropout_rate',
                         default=0.2,
                         type=float,
-                        help='Dropout rate for EfficientNet')
+                        help='Dropout rate used in EfficientNet')
     parser.add_argument('--conv1_t_size',
                         default=7,
                         type=int,

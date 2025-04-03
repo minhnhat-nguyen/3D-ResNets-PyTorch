@@ -6,7 +6,7 @@ import os
 import numpy as np
 import torch
 from torch.nn import CrossEntropyLoss
-from torch.optim import SGD, lr_scheduler
+from torch.optim import SGD, Adam, lr_scheduler
 import torch.multiprocessing as mp
 import torch.distributed as dist
 from torch.backends import cudnn
@@ -192,12 +192,22 @@ def get_train_utils(opt, model_parameters):
         dampening = 0
     else:
         dampening = opt.dampening
-    optimizer = SGD(model_parameters,
-                    lr=opt.learning_rate,
-                    momentum=opt.momentum,
-                    dampening=dampening,
-                    weight_decay=opt.weight_decay,
-                    nesterov=opt.nesterov)
+        
+    if opt.optimizer == 'sgd':
+        optimizer = SGD(model_parameters,
+                        lr=opt.learning_rate,
+                        momentum=opt.momentum,
+                        dampening=dampening,
+                        weight_decay=opt.weight_decay,
+                        nesterov=opt.nesterov)
+    elif opt.optimizer == 'adam':
+        optimizer = Adam(model_parameters,
+                        lr=opt.learning_rate,
+                        betas=(opt.adam_beta1, opt.adam_beta2),
+                        eps=opt.adam_epsilon,
+                        weight_decay=opt.weight_decay)
+    else:
+        raise ValueError(f"Unsupported optimizer: {opt.optimizer}")
 
     assert opt.lr_scheduler in ['plateau', 'multistep']
     assert not (opt.lr_scheduler == 'plateau' and opt.no_val)

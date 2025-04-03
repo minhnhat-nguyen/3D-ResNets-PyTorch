@@ -2,22 +2,29 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from collections import OrderedDict
 
+# Constants for EfficientNet versions
+# (width_factor, depth_factor, resolution, dropout_rate)
+EFFICIENTNET_PARAMS = {
+    # B0 to B7 standard models
+    0: (1.0, 1.0, 224, 0.2),
+    1: (1.0, 1.1, 240, 0.2),
+    2: (1.1, 1.2, 260, 0.3),
+    3: (1.2, 1.4, 300, 0.3),
+    4: (1.4, 1.8, 380, 0.4),
+    5: (1.6, 2.2, 456, 0.4),
+    6: (1.8, 2.6, 528, 0.5),
+    7: (2.0, 3.1, 600, 0.5),
+}
 
 class Swish(nn.Module):
+    """Swish activation function"""
     def forward(self, x):
         return x * torch.sigmoid(x)
 
-
-def conv3x3x3(in_planes, out_planes, stride=1):
-    return nn.Conv3d(in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=False)
-
-
-def conv1x1x1(in_planes, out_planes, stride=1):
-    return nn.Conv3d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False)
-
-
 class SEModule(nn.Module):
+    """Squeeze-and-Excitation module"""
     def __init__(self, channels, reduction=4):
         super(SEModule, self).__init__()
         self.avg_pool = nn.AdaptiveAvgPool3d(1)
@@ -35,75 +42,82 @@ class SEModule(nn.Module):
         x = self.sigmoid(x)
         return module_input * x
 
-
 class MBConvBlock(nn.Module):
-    def __init__(self, in_planes, planes, expansion, stride=1, kernel_size=3, reduction_ratio=4, dropout_rate=0.2, use_residual=True):
+    """Mobile Inverted Residual Bottleneck Block for EfficientNet"""
+    def __init__(self, in_channels, out_channels, kernel_size, stride, 
+                 expand_ratio, se_ratio=0.25, dropout_rate=None):
         super(MBConvBlock, self).__init__()
-        self.use_residual = use_residual and stride == 1 and in_planes == planes
+        
         self.dropout_rate = dropout_rate
-        expand_planes = in_planes * expansion
+        self.use_residual = (in_channels == out_channels and stride == 1)
         
         # Expansion phase
-        if expansion != 1:
-            self.expand_conv = nn.Conv3d(in_planes, expand_planes, kernel_size=1, stride=1, padding=0, bias=False)
-            self.expand_bn = nn.BatchNorm3d(expand_planes)
-            self.expand_swish = Swish()
+        expanded_channels = in_channels * expand_ratio
+        if expand_ratio != 1:
+            self.expand_conv = nn.Conv3d(in_channels, expanded_channels, 
+                                        kernel_size=1, stride=1, padding=0, bias=False)
+            self.bn0 = nn.BatchNorm3d(expanded_channels)
         
         # Depthwise convolution
-        padding = (kernel_size - 1) // 2
-        self.depthwise_conv = nn.Conv3d(
-            expand_planes, expand_planes, kernel_size=kernel_size, stride=stride,
-            padding=padding, groups=expand_planes, bias=False
-        )
-        self.depthwise_bn = nn.BatchNorm3d(expand_planes)
-        self.depthwise_swish = Swish()
+        self.depthwise_conv = nn.Conv3d(expanded_channels, expanded_channels, 
+                                       kernel_size=kernel_size, stride=stride,
+                                       padding=(kernel_size-1)//2, groups=expanded_channels, bias=False)
+        self.bn1 = nn.BatchNorm3d(expanded_channels)
         
         # Squeeze and Excitation
-        self.se = SEModule(expand_planes, reduction=reduction_ratio)
+        self.se = SEModule(expanded_channels, reduction=int(in_channels * se_ratio))
         
-        # Pointwise convolution
-        self.project_conv = nn.Conv3d(expand_planes, planes, kernel_size=1, stride=1, padding=0, bias=False)
-        self.project_bn = nn.BatchNorm3d(planes)
+        # Output phase
+        self.project_conv = nn.Conv3d(expanded_channels, out_channels, 
+                                     kernel_size=1, stride=1, padding=0, bias=False)
+        self.bn2 = nn.BatchNorm3d(out_channels)
         
-        # Dropout
-        if self.use_residual and dropout_rate > 0:
-            self.dropout = nn.Dropout3d(dropout_rate)
+        self.swish = Swish()
         
-    def forward(self, x):
-        identity = x
+    def forward(self, inputs):
+        x = inputs
         
         # Expansion
         if hasattr(self, 'expand_conv'):
             x = self.expand_conv(x)
-            x = self.expand_bn(x)
-            x = self.expand_swish(x)
+            x = self.bn0(x)
+            x = self.swish(x)
         
         # Depthwise
         x = self.depthwise_conv(x)
-        x = self.depthwise_bn(x)
-        x = self.depthwise_swish(x)
+        x = self.bn1(x)
+        x = self.swish(x)
         
         # Squeeze and Excitation
         x = self.se(x)
         
-        # Pointwise
+        # Output
         x = self.project_conv(x)
-        x = self.project_bn(x)
+        x = self.bn2(x)
         
         # Skip connection
         if self.use_residual:
-            if self.dropout_rate > 0:
-                x = self.dropout(x)
-            x += identity
+            if self.dropout_rate is not None and self.dropout_rate > 0 and self.training:
+                x = F.dropout3d(x, p=self.dropout_rate, training=self.training)
+            x = x + inputs
             
         return x
 
-
 class EfficientNet3D(nn.Module):
+    """
+    3D implementation of EfficientNet
+    
+    Args:
+        width_factor: Width factor for scaling model width
+        depth_factor: Depth factor for scaling number of layers
+        dropout_rate: Dropout rate
+        num_classes: Number of output classes
+        n_input_channels: Number of input channels (3 for RGB)
+    """
     def __init__(self, 
-                 width_multiplier=1.0,
-                 depth_multiplier=1.0,
-                 dropout_rate=0.2,
+                 width_factor=1.0, 
+                 depth_factor=1.0, 
+                 dropout_rate=0.2, 
                  num_classes=400,
                  n_input_channels=3,
                  conv1_t_size=7,
@@ -111,72 +125,94 @@ class EfficientNet3D(nn.Module):
                  no_max_pool=False):
         super(EfficientNet3D, self).__init__()
         
-        # EfficientNet-B0 baseline parameters for blocks
-        block_params = [
-            # expansion, channels, layers, kernel_size, stride
-            [1, 16, 1, 3, 1],
-            [6, 24, 2, 3, 2],
-            [6, 40, 2, 5, 2],
-            [6, 80, 3, 3, 2],
-            [6, 112, 3, 5, 1],
-            [6, 192, 4, 5, 2],
-            [6, 320, 1, 3, 1]
+        # Base EfficientNet architecture parameters
+        # (in_channels, out_channels, kernel_size, stride, expand_ratio, repeats)
+        base_architecture = [
+            # stage 1
+            [32, 16, 3, 1, 1, 1],
+            # stage 2
+            [16, 24, 3, 2, 6, 2],
+            # stage 3
+            [24, 40, 5, 2, 6, 2],
+            # stage 4
+            [40, 80, 3, 2, 6, 3],
+            # stage 5
+            [80, 112, 5, 1, 6, 3],
+            # stage 6
+            [112, 192, 5, 2, 6, 4],
+            # stage 7
+            [192, 320, 3, 1, 6, 1]
         ]
         
-        # Adjust channels based on width multiplier
-        self.input_channels = int(32 * width_multiplier)
+        # Adjust channels based on width_factor
+        input_channels = self._round_filters(32, width_factor)
         
-        # Initial stem
-        self.conv1 = nn.Conv3d(n_input_channels, self.input_channels,
-                              kernel_size=(conv1_t_size, 3, 3),
-                              stride=(conv1_t_stride, 2, 2),
-                              padding=(conv1_t_size // 2, 1, 1),
-                              bias=False)
-        self.bn1 = nn.BatchNorm3d(self.input_channels)
+        # First convolution layer
+        self.conv_stem = nn.Conv3d(n_input_channels, input_channels, 
+                                  kernel_size=(conv1_t_size, 3, 3),
+                                  stride=(conv1_t_stride, 2, 2),
+                                  padding=((conv1_t_size - 1) // 2, 1, 1),
+                                  bias=False)
+        self.bn0 = nn.BatchNorm3d(input_channels)
         self.swish = Swish()
-        self.no_max_pool = no_max_pool
-        self.maxpool = nn.MaxPool3d(kernel_size=3, stride=2, padding=1)
         
-        # Build MBConv blocks
-        self.blocks = nn.Sequential()
-        layer_idx = 0
+        # Build blocks
+        self.blocks = nn.ModuleList([])
         
-        for block_idx, (expansion, channels, layers, kernel_size, stride) in enumerate(block_params):
-            # Adjust output channels based on width multiplier
-            output_channels = int(channels * width_multiplier)
+        # For each stage in the base architecture
+        for stage_params in base_architecture:
+            in_chs, out_chs, kernel_size, stride, exp_ratio, repeats = stage_params
             
-            # Adjust the number of layers per block based on depth multiplier
-            repeats = int(math.ceil(layers * depth_multiplier))
+            # Adjust filters and repeats based on width and depth factors
+            out_chs = self._round_filters(out_chs, width_factor)
+            repeats = self._round_repeats(repeats, depth_factor)
             
-            # Create block
+            # Create blocks for this stage
             for i in range(repeats):
-                # Use stride only for the first layer of each block
+                # Only the first block in each stage uses the specified stride
                 block_stride = stride if i == 0 else 1
+                block_in_chs = input_channels if i == 0 else out_chs
                 
-                self.blocks.add_module(
-                    f'block{layer_idx}',
-                    MBConvBlock(
-                        self.input_channels, output_channels, expansion, 
-                        stride=block_stride, kernel_size=kernel_size, 
-                        dropout_rate=dropout_rate
-                    )
-                )
-                self.input_channels = output_channels
-                layer_idx += 1
+                self.blocks.append(MBConvBlock(
+                    in_channels=block_in_chs,
+                    out_channels=out_chs,
+                    kernel_size=kernel_size,
+                    stride=block_stride,
+                    expand_ratio=exp_ratio,
+                    dropout_rate=dropout_rate
+                ))
+                
+            input_channels = out_chs
         
         # Head
-        self.head_channels = int(1280 * width_multiplier)
-        self.head_conv = nn.Conv3d(self.input_channels, self.head_channels, kernel_size=1, bias=False)
-        self.head_bn = nn.BatchNorm3d(self.head_channels)
-        self.head_swish = Swish()
+        out_channels = self._round_filters(1280, width_factor)
+        self.conv_head = nn.Conv3d(input_channels, out_channels,
+                                  kernel_size=1, stride=1, padding=0, bias=False)
+        self.bn1 = nn.BatchNorm3d(out_channels)
         
-        # Final FC layer
-        self.avgpool = nn.AdaptiveAvgPool3d((1, 1, 1))
+        # Final classifier
+        self.avg_pooling = nn.AdaptiveAvgPool3d(1)
         self.dropout = nn.Dropout(dropout_rate)
-        self.fc = nn.Linear(self.head_channels, num_classes)
+        self.fc = nn.Linear(out_channels, num_classes)
         
-        # Initialize weights
+        # Weight initialization
         self._initialize_weights()
+        
+    def _round_filters(self, filters, width_factor):
+        """Round number of filters based on depth multiplier."""
+        multiplier = width_factor
+        divisor = 8
+        filters *= multiplier
+        min_depth = divisor
+        new_filters = max(min_depth, int(filters + divisor / 2) // divisor * divisor)
+        # Make sure that round down does not go down by more than 10%
+        if new_filters < 0.9 * filters:
+            new_filters += divisor
+        return int(new_filters)
+
+    def _round_repeats(self, repeats, depth_factor):
+        """Round number of repeats based on depth multiplier."""
+        return int(math.ceil(depth_factor * repeats))
     
     def _initialize_weights(self):
         for m in self.modules():
@@ -188,65 +224,64 @@ class EfficientNet3D(nn.Module):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
             elif isinstance(m, nn.Linear):
-                nn.init.normal_(m.weight, std=0.01)
+                nn.init.normal_(m.weight, 0, 0.01)
                 nn.init.constant_(m.bias, 0)
     
     def forward(self, x):
-        # Initial stem
-        x = self.conv1(x)
+        # Stem
+        x = self.conv_stem(x)
+        x = self.bn0(x)
+        x = self.swish(x)
+        
+        # Blocks
+        for block in self.blocks:
+            x = block(x)
+            
+        # Head
+        x = self.conv_head(x)
         x = self.bn1(x)
         x = self.swish(x)
-        if not self.no_max_pool:
-            x = self.maxpool(x)
         
-        # MBConv blocks
-        x = self.blocks(x)
-        
-        # Head
-        x = self.head_conv(x)
-        x = self.head_bn(x)
-        x = self.head_swish(x)
-        
-        # Pooling and FC
-        x = self.avgpool(x)
+        # Pooling and final linear layer
+        x = self.avg_pooling(x)
         x = x.view(x.size(0), -1)
         x = self.dropout(x)
         x = self.fc(x)
         
         return x
-
-
-def get_efficientnet_params(model_name):
-    """Get efficientnet parameters based on model name."""
-    params_dict = {
-        # width_mult, depth_mult, resolution, dropout_rate
-        'efficientnet-b0': (1.0, 1.0, 224, 0.2),
-        'efficientnet-b1': (1.0, 1.1, 240, 0.2),
-        'efficientnet-b2': (1.1, 1.2, 260, 0.3),
-        'efficientnet-b3': (1.2, 1.4, 300, 0.3),
-        'efficientnet-b4': (1.4, 1.8, 380, 0.4),
-        'efficientnet-b5': (1.6, 2.2, 456, 0.4),
-        'efficientnet-b6': (1.8, 2.6, 528, 0.5),
-        'efficientnet-b7': (2.0, 3.1, 600, 0.5),
-    }
-    return params_dict[model_name]
-
-
-def generate_model(model_name='efficientnet-b0', **kwargs):
-    """Generate EfficientNet model."""
-    if model_name in ['efficientnet-b0', 'efficientnet-b1', 'efficientnet-b2', 
-                      'efficientnet-b3', 'efficientnet-b4', 'efficientnet-b5', 
-                      'efficientnet-b6', 'efficientnet-b7']:
-        width_mult, depth_mult, _, dropout_rate = get_efficientnet_params(model_name)
+    
+def get_efficientnet_params(version):
+    """Get efficientnet parameters based on version"""
+    if version in EFFICIENTNET_PARAMS:
+        width_factor, depth_factor, resolution, dropout_rate = EFFICIENTNET_PARAMS[version]
+        return width_factor, depth_factor, resolution, dropout_rate
     else:
-        # Default to b0 parameters
-        width_mult, depth_mult, _, dropout_rate = 1.0, 1.0, 224, 0.2
+        raise ValueError(f"EfficientNet version {version} not supported")
+
+def generate_model(model_depth=0, n_classes=400, n_input_channels=3, 
+                  conv1_t_size=7, conv1_t_stride=1, no_max_pool=False):
+    """
+    Generate EfficientNet model
+    
+    Args:
+        model_depth: EfficientNet version (0-7 for B0-B7)
+        n_classes: Number of classes
+        n_input_channels: Number of input channels
+        conv1_t_size: Size of temporal kernel in first conv layer
+        conv1_t_stride: Stride of temporal kernel in first conv layer
+        no_max_pool: If true, max pooling after first conv is removed
+    """
+    width_factor, depth_factor, resolution, dropout_rate = get_efficientnet_params(model_depth)
     
     model = EfficientNet3D(
-        width_multiplier=width_mult,
-        depth_multiplier=depth_mult,
+        width_factor=width_factor,
+        depth_factor=depth_factor,
         dropout_rate=dropout_rate,
-        **kwargs
+        num_classes=n_classes,
+        n_input_channels=n_input_channels,
+        conv1_t_size=conv1_t_size,
+        conv1_t_stride=conv1_t_stride,
+        no_max_pool=no_max_pool
     )
     
     return model 
