@@ -43,7 +43,7 @@ class Resize(transforms.Resize):
         pass
 
 
-class Scale(transforms.Scale):
+class Scale(transforms.Resize):
 
     def randomize_parameters(self):
         pass

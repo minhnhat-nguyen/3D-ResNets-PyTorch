@@ -241,3 +241,32 @@ python main.py --root_path ~/data --video_path ucf101_videos/jpg --annotation_pa
 --pretrain_path models/resnet-50-kinetics.pth --ft_begin_module fc \
 --model resnet --model_depth 50 --batch_size 128 --n_threads 4 --checkpoint 5
 ```
+
+# 3D EfficientNet for Video Classification
+
+This repository extends the original 3D-ResNets-PyTorch with EfficientNet support for video classification.
+
+## EfficientNet Models
+
+The implementation supports 3D versions of EfficientNet B0-B7 models. The model sizes are as follows:
+
+- EfficientNet-B0: ~8.3M parameters
+- EfficientNet-B2: ~16.1M parameters
+
+For comparison, WideResNet-50 has ~46.2M parameters.
+
+## Usage
+
+To use EfficientNet, set the model parameter to 'efficientnet' and specify the version:
+
+```
+python main.py --model efficientnet --efficientnet_version 0 --n_classes 101
+```
+
+Additional EfficientNet-specific parameters:
+- `--efficientnet_version`: EfficientNet version (0-7 for models B0-B7)
+- `--dropout_rate`: Dropout rate for EfficientNet (default: 0.2)
+
+## Performance
+
+EfficientNet models should provide better accuracy-to-parameter ratio compared to ResNet and WideResNet models, achieving similar or better accuracy with significantly fewer parameters.

@@ -219,11 +219,19 @@ def parse_opts():
         default='resnet',
         type=str,
         help=
-        '(resnet | resnet2p1d | preresnet | wideresnet | resnext | densenet | ')
+        '(resnet | resnet2p1d | preresnet | wideresnet | resnext | densenet | efficientnet)')
     parser.add_argument('--model_depth',
                         default=18,
                         type=int,
                         help='Depth of resnet (10 | 18 | 34 | 50 | 101)')
+    parser.add_argument('--efficientnet_version',
+                        default=0,
+                        type=int,
+                        help='EfficientNet version (0-7 for models b0-b7)')
+    parser.add_argument('--dropout_rate',
+                        default=0.2,
+                        type=float,
+                        help='Dropout rate for EfficientNet')
     parser.add_argument('--conv1_t_size',
                         default=7,
                         type=int,
