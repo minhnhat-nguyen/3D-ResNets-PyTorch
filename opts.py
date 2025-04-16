@@ -128,6 +128,10 @@ def parse_opts():
                         default='sgd',
                         type=str,
                         help='Currently supports SGD and Adam')
+    parser.add_argument('--adam_learning_rate',
+                        default=0.0001,
+                        type=float,
+                        help='Initial learning rate for Adam optimizer (default: 0.0001)')
     parser.add_argument('--adam_beta1',
                         default=0.9,
                         type=float,

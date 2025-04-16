@@ -259,7 +259,8 @@ def get_efficientnet_params(version):
         raise ValueError(f"EfficientNet version {version} not supported")
 
 def generate_model(model_depth=0, n_classes=400, n_input_channels=3, 
-                  conv1_t_size=7, conv1_t_stride=1, no_max_pool=False):
+                  dropout_rate=None, conv1_t_size=7, 
+                  conv1_t_stride=1, no_max_pool=False):
     """
     Generate EfficientNet model
     
@@ -267,11 +268,16 @@ def generate_model(model_depth=0, n_classes=400, n_input_channels=3,
         model_depth: EfficientNet version (0-7 for B0-B7)
         n_classes: Number of classes
         n_input_channels: Number of input channels
+        dropout_rate: Override default dropout rate
         conv1_t_size: Size of temporal kernel in first conv layer
         conv1_t_stride: Stride of temporal kernel in first conv layer
         no_max_pool: If true, max pooling after first conv is removed
     """
-    width_factor, depth_factor, resolution, dropout_rate = get_efficientnet_params(model_depth)
+    width_factor, depth_factor, resolution, default_dropout_rate = get_efficientnet_params(model_depth)
+    
+    # Use provided dropout rate or the default one from model definition
+    if dropout_rate is None:
+        dropout_rate = default_dropout_rate
     
     model = EfficientNet3D(
         width_factor=width_factor,

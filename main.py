@@ -200,23 +200,28 @@ def get_train_utils(opt, model_parameters):
                         dampening=dampening,
                         weight_decay=opt.weight_decay,
                         nesterov=opt.nesterov)
+        
+        # Apply learning rate scheduler only for SGD
+        assert opt.lr_scheduler in ['plateau', 'multistep']
+        assert not (opt.lr_scheduler == 'plateau' and opt.no_val)
+        if opt.lr_scheduler == 'plateau':
+            scheduler = lr_scheduler.ReduceLROnPlateau(
+                optimizer, 'min', patience=opt.plateau_patience)
+        else:
+            scheduler = lr_scheduler.MultiStepLR(optimizer,
+                                               opt.multistep_milestones)
     elif opt.optimizer == 'adam':
+        # Adam has its own internal adaptation mechanism, so we use a more appropriate learning rate
+        # and set a constant scheduler to not interfere with Adam's internal mechanism
         optimizer = Adam(model_parameters,
-                        lr=opt.learning_rate,
+                        lr=opt.adam_learning_rate,
                         betas=(opt.adam_beta1, opt.adam_beta2),
                         eps=opt.adam_epsilon,
                         weight_decay=opt.weight_decay)
+        # Create a dummy scheduler that doesn't change the learning rate
+        scheduler = lr_scheduler.LambdaLR(optimizer, lambda epoch: 1.0)
     else:
         raise ValueError(f"Unsupported optimizer: {opt.optimizer}")
-
-    assert opt.lr_scheduler in ['plateau', 'multistep']
-    assert not (opt.lr_scheduler == 'plateau' and opt.no_val)
-    if opt.lr_scheduler == 'plateau':
-        scheduler = lr_scheduler.ReduceLROnPlateau(
-            optimizer, 'min', patience=opt.plateau_patience)
-    else:
-        scheduler = lr_scheduler.MultiStepLR(optimizer,
-                                             opt.multistep_milestones)
 
     return (train_loader, train_sampler, train_logger, train_batch_logger,
             optimizer, scheduler)

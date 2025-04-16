@@ -96,6 +96,7 @@ def generate_model(opt):
         model = efficientnet.generate_model(model_depth=opt.efficientnet_version,
                                            n_classes=opt.n_classes,
                                            n_input_channels=opt.n_input_channels,
+                                           dropout_rate=opt.dropout_rate,
                                            conv1_t_size=opt.conv1_t_size,
                                            conv1_t_stride=opt.conv1_t_stride,
                                            no_max_pool=opt.no_max_pool)
