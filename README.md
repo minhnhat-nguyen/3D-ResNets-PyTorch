@@ -1,5 +1,25 @@
 # 3D ResNets for Action Recognition
 
+## Fork Enhancements 
+
+This fork includes several modifications to the original 3D ResNets framework:
+
+### Validation and Accuracy Reporting
+- Added top-k accuracy reporting during validation
+- Updated accuracy calculation methods for more comprehensive performance metrics
+
+### Model and Optimizer Enhancements
+- Added EfficientNet model support with configurable dropout rates
+- Enhanced optimizer configuration with Adam optimizer support
+- Improved overall model training flexibility
+
+### Inference Capabilities
+- Added a simple inference script (`simple_inference.py`) for direct video action prediction
+- Implemented frame extraction, preprocessing, and streamlined model prediction functionalities
+- Simplified deployment for real-world video analysis tasks
+
+These enhancements aim to improve both the training experience and practical applicability of 3D ResNets for action recognition tasks.
+
 ## Update (2020/4/13)
 
 We published a paper on arXiv.
