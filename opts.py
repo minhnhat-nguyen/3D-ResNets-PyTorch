@@ -291,6 +291,10 @@ def parse_opts():
                         default=5,
                         type=int,
                         help='Top-k scores are saved in json file.')
+    parser.add_argument('--val_topk',
+                        default=1,
+                        type=int,
+                        help='Top-k accuracy to report during validation.')
     parser.add_argument('--file_type',
                         default='jpg',
                         type=str,

@@ -48,16 +48,21 @@ class Logger(object):
         self.log_file.flush()
 
 
-def calculate_accuracy(outputs, targets):
+def calculate_accuracy(outputs, targets, topk=(1,)):
     with torch.no_grad():
         batch_size = targets.size(0)
-
-        _, pred = outputs.topk(1, 1, largest=True, sorted=True)
+        maxk = max(topk)
+        
+        _, pred = outputs.topk(maxk, 1, largest=True, sorted=True)
         pred = pred.t()
-        correct = pred.eq(targets.view(1, -1))
-        n_correct_elems = correct.float().sum().item()
-
-        return n_correct_elems / batch_size
+        correct = pred.eq(targets.view(1, -1).expand_as(pred))
+        
+        res = []
+        for k in topk:
+            correct_k = correct[:k].reshape(-1).float().sum(0)
+            res.append(correct_k.item() / batch_size)
+            
+        return res[0] if len(res) == 1 else res
 
 
 def calculate_precision_and_recall(outputs, targets, pos_label=1):

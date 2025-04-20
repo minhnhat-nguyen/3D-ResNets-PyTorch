@@ -15,7 +15,8 @@ def val_epoch(epoch,
               device,
               logger,
               tb_writer=None,
-              distributed=False):
+              distributed=False,
+              val_topk=1):
     print('validation at epoch {}'.format(epoch))
 
     model.eval()
@@ -34,7 +35,7 @@ def val_epoch(epoch,
             targets = targets.to(device, non_blocking=True)
             outputs = model(inputs)
             loss = criterion(outputs, targets)
-            acc = calculate_accuracy(outputs, targets)
+            acc = calculate_accuracy(outputs, targets, (val_topk,))
 
             losses.update(loss.item(), inputs.size(0))
             accuracies.update(acc, inputs.size(0))
@@ -46,10 +47,11 @@ def val_epoch(epoch,
                   'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
                   'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
                   'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-                  'Acc {acc.val:.3f} ({acc.avg:.3f})'.format(
+                  'Top-{3} Acc {acc.val:.3f} ({acc.avg:.3f})'.format(
                       epoch,
                       i + 1,
                       len(data_loader),
+                      val_topk,
                       batch_time=batch_time,
                       data_time=data_time,
                       loss=losses,
