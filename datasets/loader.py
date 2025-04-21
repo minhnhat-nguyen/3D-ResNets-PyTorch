@@ -8,15 +8,16 @@ class ImageLoaderPIL(object):
 
     def __call__(self, path):
         # open path as file to avoid ResourceWarning (https://github.com/python-pillow/Pillow/issues/835)
-        with path.open('rb') as f:
+        with path.open("rb") as f:
             with Image.open(f) as img:
-                return img.convert('RGB')
+                return img.convert("RGB")
 
 
 class ImageLoaderAccImage(object):
 
     def __call__(self, path):
         import accimage
+
         return accimage.Image(str(path))
 
 
@@ -42,8 +43,8 @@ class VideoLoader(object):
 class VideoLoaderHDF5(object):
 
     def __call__(self, video_path, frame_indices):
-        with h5py.File(video_path, 'r') as f:
-            video_data = f['video']
+        with h5py.File(video_path, "r") as f:
+            video_data = f["video"]
 
             video = []
             for i in frame_indices:
@@ -58,14 +59,14 @@ class VideoLoaderHDF5(object):
 class VideoLoaderFlowHDF5(object):
 
     def __init__(self):
-        self.flows = ['u', 'v']
+        self.flows = ["u", "v"]
 
     def __call__(self, video_path, frame_indices):
-        with h5py.File(video_path, 'r') as f:
+        with h5py.File(video_path, "r") as f:
 
             flow_data = []
             for flow in self.flows:
-                flow_data.append(f[f'video_{flow}'])
+                flow_data.append(f[f"video_{flow}"])
 
             video = []
             for i in frame_indices:
@@ -75,6 +76,6 @@ class VideoLoaderFlowHDF5(object):
                         for video_data in flow_data
                     ]
                     frame.append(frame[-1])  # add dummy data into third channel
-                    video.append(Image.merge('RGB', frame))
+                    video.append(Image.merge("RGB", frame))
 
         return video

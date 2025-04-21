@@ -1,6 +1,6 @@
-import json
 import copy
 import functools
+import json
 
 import torch
 from torch.utils.data.dataloader import default_collate
@@ -34,16 +34,14 @@ class VideoDatasetMultiClips(VideoDataset):
                 self.spatial_transform.randomize_parameters()
                 clip = [self.spatial_transform(img) for img in clip]
             clips.append(torch.stack(clip, 0).permute(1, 0, 2, 3))
-            segments.append(
-                [min(clip_frame_indices),
-                 max(clip_frame_indices) + 1])
+            segments.append([min(clip_frame_indices), max(clip_frame_indices) + 1])
 
         return clips, segments
 
     def __getitem__(self, index):
-        path = self.data[index]['video']
+        path = self.data[index]["video"]
 
-        video_frame_indices = self.data[index]['frame_indices']
+        video_frame_indices = self.data[index]["frame_indices"]
         if self.temporal_transform is not None:
             video_frame_indices = self.temporal_transform(video_frame_indices)
 
@@ -54,9 +52,9 @@ class VideoDatasetMultiClips(VideoDataset):
         else:
             target = self.data[index][self.target_type]
 
-        if 'segment' in self.target_type:
+        if "segment" in self.target_type:
             if isinstance(self.target_type, list):
-                segment_index = self.target_type.index('segment')
+                segment_index = self.target_type.index("segment")
                 targets = []
                 for s in segments:
                     targets.append(copy.deepcopy(target))

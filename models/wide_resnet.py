@@ -20,7 +20,6 @@ def generate_model(model_depth, k, **kwargs):
     elif model_depth == 152:
         model = resnet.ResNet(WideBottleneck, [3, 8, 36, 3], inplanes, **kwargs)
     elif model_depth == 200:
-        model = resnet.ResNet(WideBottleneck, [3, 24, 36, 3], inplanes,
-                              **kwargs)
+        model = resnet.ResNet(WideBottleneck, [3, 24, 36, 3], inplanes, **kwargs)
 
     return model

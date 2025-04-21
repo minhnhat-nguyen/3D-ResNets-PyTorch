@@ -1,8 +1,8 @@
 import random
 
-from torchvision.transforms import transforms
-from torchvision.transforms import functional as F
 from PIL import Image
+from torchvision.transforms import functional as F
+from torchvision.transforms import transforms
 
 
 class Compose(transforms.Compose):
@@ -57,10 +57,9 @@ class CenterCrop(transforms.CenterCrop):
 
 class CornerCrop(object):
 
-    def __init__(self,
-                 size,
-                 crop_position=None,
-                 crop_positions=['c', 'tl', 'tr', 'bl', 'br']):
+    def __init__(
+        self, size, crop_position=None, crop_positions=["c", "tl", "tr", "bl", "br"]
+    ):
         self.size = size
         self.crop_position = crop_position
         self.crop_positions = crop_positions
@@ -76,19 +75,19 @@ class CornerCrop(object):
         image_height = img.size[1]
 
         h, w = (self.size, self.size)
-        if self.crop_position == 'c':
-            i = int(round((image_height - h) / 2.))
-            j = int(round((image_width - w) / 2.))
-        elif self.crop_position == 'tl':
+        if self.crop_position == "c":
+            i = int(round((image_height - h) / 2.0))
+            j = int(round((image_width - w) / 2.0))
+        elif self.crop_position == "tl":
             i = 0
             j = 0
-        elif self.crop_position == 'tr':
+        elif self.crop_position == "tr":
             i = 0
             j = image_width - self.size
-        elif self.crop_position == 'bl':
+        elif self.crop_position == "bl":
             i = image_height - self.size
             j = 0
-        elif self.crop_position == 'br':
+        elif self.crop_position == "br":
             i = image_height - self.size
             j = image_width - self.size
 
@@ -98,13 +97,17 @@ class CornerCrop(object):
 
     def randomize_parameters(self):
         if self.randomize:
-            self.crop_position = self.crop_positions[random.randint(
-                0,
-                len(self.crop_positions) - 1)]
+            self.crop_position = self.crop_positions[
+                random.randint(0, len(self.crop_positions) - 1)
+            ]
 
     def __repr__(self):
-        return self.__class__.__name__ + '(size={0}, crop_position={1}, randomize={2})'.format(
-            self.size, self.crop_position, self.randomize)
+        return (
+            self.__class__.__name__
+            + "(size={0}, crop_position={1}, randomize={2})".format(
+                self.size, self.crop_position, self.randomize
+            )
+        )
 
 
 class RandomHorizontalFlip(transforms.RandomHorizontalFlip):
@@ -130,11 +133,13 @@ class RandomHorizontalFlip(transforms.RandomHorizontalFlip):
 
 class MultiScaleCornerCrop(object):
 
-    def __init__(self,
-                 size,
-                 scales,
-                 crop_positions=['c', 'tl', 'tr', 'bl', 'br'],
-                 interpolation=Image.BILINEAR):
+    def __init__(
+        self,
+        size,
+        scales,
+        crop_positions=["c", "tl", "tr", "bl", "br"],
+        interpolation=Image.BILINEAR,
+    ):
         self.size = size
         self.scales = scales
         self.interpolation = interpolation
@@ -152,24 +157,30 @@ class MultiScaleCornerCrop(object):
 
     def randomize_parameters(self):
         self.scale = self.scales[random.randint(0, len(self.scales) - 1)]
-        crop_position = self.crop_positions[random.randint(
-            0,
-            len(self.crop_positions) - 1)]
+        crop_position = self.crop_positions[
+            random.randint(0, len(self.crop_positions) - 1)
+        ]
 
         self.corner_crop = CornerCrop(None, crop_position)
 
     def __repr__(self):
-        return self.__class__.__name__ + '(size={0}, scales={1}, interpolation={2})'.format(
-            self.size, self.scales, self.interpolation)
+        return (
+            self.__class__.__name__
+            + "(size={0}, scales={1}, interpolation={2})".format(
+                self.size, self.scales, self.interpolation
+            )
+        )
 
 
 class RandomResizedCrop(transforms.RandomResizedCrop):
 
-    def __init__(self,
-                 size,
-                 scale=(0.08, 1.0),
-                 ratio=(3. / 4., 4. / 3.),
-                 interpolation=Image.BILINEAR):
+    def __init__(
+        self,
+        size,
+        scale=(0.08, 1.0),
+        ratio=(3.0 / 4.0, 4.0 / 3.0),
+        interpolation=Image.BILINEAR,
+    ):
         super().__init__(size, scale, ratio, interpolation)
         self.randomize_parameters()
 
@@ -193,8 +204,9 @@ class ColorJitter(transforms.ColorJitter):
 
     def __call__(self, img):
         if self.randomize:
-            self.transform = self.get_params(self.brightness, self.contrast,
-                                             self.saturation, self.hue)
+            self.transform = self.get_params(
+                self.brightness, self.contrast, self.saturation, self.hue
+            )
             self.randomize = False
 
         return self.transform(img)
@@ -209,7 +221,7 @@ class PickFirstChannels(object):
         self.n = n
 
     def __call__(self, tensor):
-        return tensor[:self.n, :, :]
+        return tensor[: self.n, :, :]
 
     def randomize_parameters(self):
         pass

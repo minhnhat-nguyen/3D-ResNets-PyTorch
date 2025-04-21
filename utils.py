@@ -2,8 +2,8 @@ import csv
 import random
 from functools import partialmethod
 
-import torch
 import numpy as np
+import torch
 from sklearn.metrics import precision_recall_fscore_support
 
 
@@ -29,8 +29,8 @@ class AverageMeter(object):
 class Logger(object):
 
     def __init__(self, path, header):
-        self.log_file = path.open('w')
-        self.logger = csv.writer(self.log_file, delimiter='\t')
+        self.log_file = path.open("w")
+        self.logger = csv.writer(self.log_file, delimiter="\t")
 
         self.logger.writerow(header)
         self.header = header
@@ -52,16 +52,16 @@ def calculate_accuracy(outputs, targets, topk=(1,)):
     with torch.no_grad():
         batch_size = targets.size(0)
         maxk = max(topk)
-        
+
         _, pred = outputs.topk(maxk, 1, largest=True, sorted=True)
         pred = pred.t()
         correct = pred.eq(targets.view(1, -1).expand_as(pred))
-        
+
         res = []
         for k in topk:
             correct_k = correct[:k].reshape(-1).float().sum(0)
             res.append(correct_k.item() / batch_size)
-            
+
         return res[0] if len(res) == 1 else res
 
 
@@ -69,8 +69,8 @@ def calculate_precision_and_recall(outputs, targets, pos_label=1):
     with torch.no_grad():
         _, pred = outputs.topk(1, 1, largest=True, sorted=True)
         precision, recall, _, _ = precision_recall_fscore_support(
-            targets.view(-1, 1).cpu().numpy(),
-            pred.cpu().numpy())
+            targets.view(-1, 1).cpu().numpy(), pred.cpu().numpy()
+        )
 
         return precision[pos_label], recall[pos_label]
 
@@ -88,7 +88,7 @@ def worker_init_fn(worker_id):
 def get_lr(optimizer):
     lrs = []
     for param_group in optimizer.param_groups:
-        lr = float(param_group['lr'])
+        lr = float(param_group["lr"])
         lrs.append(lr)
 
     return max(lrs)
