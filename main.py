@@ -103,6 +103,13 @@ def resume_train_utils(resume_path, begin_epoch, optimizer, scheduler):
     begin_epoch = checkpoint['epoch'] + 1
     if optimizer is not None and 'optimizer' in checkpoint:
         optimizer.load_state_dict(checkpoint['optimizer'])
+        # Ensure SGD groups have momentum parameters in case checkpoint used a different optimizer
+        from torch.optim import SGD
+        if isinstance(optimizer, SGD):
+            for group in optimizer.param_groups:
+                group.setdefault('momentum', optimizer.defaults.get('momentum', 0))
+                group.setdefault('dampening', optimizer.defaults.get('dampening', 0))
+                group.setdefault('nesterov', optimizer.defaults.get('nesterov', False))
     if scheduler is not None and 'scheduler' in checkpoint:
         scheduler.load_state_dict(checkpoint['scheduler'])
 
