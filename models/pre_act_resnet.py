@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .resnet import conv3x3x3, conv1x1x1, get_inplanes, ResNet
+from .resnet import ResNet, conv1x1x1, conv3x3x3, get_inplanes
 
 
 class PreActivationBasicBlock(nn.Module):
@@ -81,25 +81,20 @@ def generate_model(model_depth, **kwargs):
     assert model_depth in [10, 18, 34, 50, 101, 152, 200]
 
     if model_depth == 10:
-        model = ResNet(PreActivationBasicBlock, [1, 1, 1, 1], get_inplanes(),
-                       **kwargs)
+        model = ResNet(PreActivationBasicBlock, [1, 1, 1, 1], get_inplanes(), **kwargs)
     elif model_depth == 18:
-        model = ResNet(PreActivationBasicBlock, [2, 2, 2, 2], get_inplanes(),
-                       **kwargs)
+        model = ResNet(PreActivationBasicBlock, [2, 2, 2, 2], get_inplanes(), **kwargs)
     elif model_depth == 34:
-        model = ResNet(PreActivationBasicBlock, [3, 4, 6, 3], get_inplanes(),
-                       **kwargs)
+        model = ResNet(PreActivationBasicBlock, [3, 4, 6, 3], get_inplanes(), **kwargs)
     elif model_depth == 50:
-        model = ResNet(PreActivationBottleneck, [3, 4, 6, 3], get_inplanes(),
-                       **kwargs)
+        model = ResNet(PreActivationBottleneck, [3, 4, 6, 3], get_inplanes(), **kwargs)
     elif model_depth == 101:
-        model = ResNet(PreActivationBottleneck, [3, 4, 23, 3], get_inplanes(),
-                       **kwargs)
+        model = ResNet(PreActivationBottleneck, [3, 4, 23, 3], get_inplanes(), **kwargs)
     elif model_depth == 152:
-        model = ResNet(PreActivationBottleneck, [3, 8, 36, 3], get_inplanes(),
-                       **kwargs)
+        model = ResNet(PreActivationBottleneck, [3, 8, 36, 3], get_inplanes(), **kwargs)
     elif model_depth == 200:
-        model = ResNet(PreActivationBottleneck, [3, 24, 36, 3], get_inplanes(),
-                       **kwargs)
+        model = ResNet(
+            PreActivationBottleneck, [3, 24, 36, 3], get_inplanes(), **kwargs
+        )
 
     return model
