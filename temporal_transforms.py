@@ -1,5 +1,5 @@
-import math
 import random
+import math
 
 
 class Compose(object):
@@ -44,7 +44,7 @@ class TemporalBeginCrop(object):
         self.size = size
 
     def __call__(self, frame_indices):
-        out = frame_indices[: self.size]
+        out = frame_indices[:self.size]
 
         for index in out:
             if len(out) >= self.size:
@@ -104,7 +104,8 @@ class TemporalEvenCrop(object):
 
     def __call__(self, frame_indices):
         n_frames = len(frame_indices)
-        stride = max(1, math.ceil((n_frames - 1 - self.size) / (self.n_samples - 1)))
+        stride = max(
+            1, math.ceil((n_frames - 1 - self.size) / (self.n_samples - 1)))
 
         out = []
         for begin_index in frame_indices[::stride]:
@@ -134,7 +135,7 @@ class SlidingWindow(object):
 
     def __call__(self, frame_indices):
         out = []
-        for begin_index in frame_indices[:: self.stride]:
+        for begin_index in frame_indices[::self.stride]:
             end_index = min(frame_indices[-1] + 1, begin_index + self.size)
             sample = list(range(begin_index, end_index))
 
@@ -153,7 +154,7 @@ class TemporalSubsampling(object):
         self.stride = stride
 
     def __call__(self, frame_indices):
-        return frame_indices[:: self.stride]
+        return frame_indices[::self.stride]
 
 
 class Shuffle(object):
@@ -163,7 +164,7 @@ class Shuffle(object):
 
     def __call__(self, frame_indices):
         frame_indices = [
-            frame_indices[i : (i + self.block_size)]
+            frame_indices[i:(i + self.block_size)]
             for i in range(0, len(frame_indices), self.block_size)
         ]
         random.shuffle(frame_indices)
